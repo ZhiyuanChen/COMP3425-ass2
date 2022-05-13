@@ -62,12 +62,12 @@ class Model(nn.Module):
 
 class Runner(dl.BaseRunner):
     "Runner"
-    def __init__(self, config, train_indices, val_indices):
-        super().__init__(config)
+    def __init__(self, train_indices, val_indices, **kwargs):
+        super().__init__(**kwargs)
         self.init_lr()
-        self.model = Model(**config.model.dict())
-        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=config.lr, weight_decay=config.optimize.weight_decay)
-        self.dataset = PollDataset(config.data.path)
+        self.model = Model(**self.net.dict())
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=self.optimize.weight_decay)
+        self.dataset = PollDataset(self.data.path)
         self.criterion = nn.CrossEntropyLoss()
         self.model, self.optimizer = self.prepare(self.model, self.optimizer)
         self.dataloaders['train'] = self.get_dataloader(train_indices)
@@ -128,23 +128,20 @@ if __name__ == '__main__':
         'name': 'feeling',
         'batch_size': 64,
         'batch_size_base': 64,
-        'train': True,
         'epoch_end': 100,
         'gradient_clip': 1.0,
-        'model.dropout': 0.1,
-        'model.embed_dim': 1024,
-        'model.transformer.num_layers': 16,
-        'model.transformer.num_heads': 16,
-        'model.transformer.ffn_dim': 4096,
+        'net.dropout': 0.1,
+        'net.embed_dim': 1024,
+        'net.transformer.num_layers': 16,
+        'net.transformer.num_heads': 16,
+        'net.transformer.ffn_dim': 4096,
         'lr': 3e-4,
         'lr_final': 1e-8,
         'optimize.weight_decay': 0.01,
         'data.path': 'standard.csv',
     }
-    config = dl.Config(**defaults)
-    parser = ConfigParser()
-    config = parser.parse_config(config=config)
     kf = KFold(10, shuffle=True, random_state=1031)
-    for train_indices, val_indices in kf.split(range(3061)):
-        runner = Runner(config, train_indices, val_indices)
-        runner.run()
+    train_indices, val_indices = next(kf.split(range(3061)))
+    runner = Runner(train_indices=train_indices, val_indices=val_indices, **defaults)
+    runner = runner.parse()
+    runner.run()
